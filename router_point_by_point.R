@@ -1,4 +1,4 @@
-# Carregar pacotes
+# libraries
 library(osmdata)
 library(sf)
 library(stplanr)
@@ -8,17 +8,17 @@ library(readxl)
 library(dplyr)
 library(stringr)
 
-#CARREGANDO PONTOS DE SECAO POR LINHA
+#stops by line
 secoes_linha <- read_excel(file.choose())
 linhas<-read_excel(file.choose())
 linhas<-linhas[!grepl("ARQUIV",linhas$Nome),]
 
-#CRIANDO CONEXÃO COM BD GEPPI
+#connecting with GEPPI database
 dsn_database = "GEPPI"
 dsn_hostname = "****"  
 dsn_port = "****"
-dsn_uid = "***"  # INSERIR O USUARIO - PEDIR AO GABRIEL TOSCANO SE NÃO TIVER"
-dsn_pwd = "***"  # INSERIR A SENHA - PEDIR AO GABRIEL TOSCANO SE NÃO TIVER"
+dsn_uid = "***"  # insert user"
+dsn_pwd = "***"  # insert key"
 
 con <- dbConnect(RPostgres::Postgres(),
                  dbname = dsn_database,
@@ -29,11 +29,8 @@ stops<-st_read(con,query="SELECT * FROM transporte_intermunicipal.gtfs_stops")
 dbDisconnect(con)
 rm(con)
 
-#LISTA DE LINHAS
+#list of bus lines
 line<-linhas$Linha %>% unique()
-
-# Lista para armazenar os valores de line[j] que apresentaram erro
-errores <- list()
 
 for(j in 1:length(line)){
   tryCatch({
@@ -45,6 +42,8 @@ for(j in 1:length(line)){
       origem_sf <- filter(stops, stop_id == pontos$`Código Ponto`[i])
       destino_sf <- filter(stops, stop_id == pontos$`Código Ponto`[i+1])
       rota_trecho <- osrmRoute(src = origem_sf, dst = destino_sf, overview = 'full')
+      rota_trecho$origin<-origem_sf$stop_id[1]
+      rota_trecho$destination<-destino_sf$stop_id[1]
       if(i == 1){
         rota_ida <- rota_trecho
       } else {
@@ -59,6 +58,8 @@ for(j in 1:length(line)){
       origem_sf <- filter(stops, stop_id == pontos$`Código Ponto`[i])
       destino_sf <- filter(stops, stop_id == pontos$`Código Ponto`[i+1])
       rota_trecho <- osrmRoute(src = origem_sf, dst = destino_sf, overview = 'full')
+      rota_trecho$origin<-origem_sf$stop_id[1]
+      rota_trecho$destination<-destino_sf$stop_id[1]
       if(i == 1){
         rota_volta <- rota_trecho
       } else {
@@ -78,8 +79,6 @@ for(j in 1:length(line)){
     }
   }, error = function(e){
     cat("Erro na linha", line[j], "- pulando para a próxima iteração\n")
-    # Armazena o valor de line[j] que apresentou erro
-    errores <- append(errores, list(line[j]))
   })
 }
 
